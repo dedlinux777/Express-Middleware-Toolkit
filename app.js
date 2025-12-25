@@ -1,32 +1,39 @@
 const express = require("express");
 const app = express();
 const fs = require("fs").promises;
+const log = require("./middlewares/logger");
+const auth = require("./middlewares/auth");
+const path = require("path");
 
 
-app.use("/api",(req, res, next) => {
-  req.time = new Date(Date.now()).toString();
-  const logData = { url: req.url, method: req.method, time: req.time };
-  log(logData);
-  next();
-});
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
+app.use("/api",log);
 
 app.get("/", (req, res) => {
-  res.send("Hi I am root");
+  res.render("authForm.ejs");
 });
 
 app.get("/random", (req, res) => {
-  res.send("Hi I am random");
+  res.send("This is a public random route.");
 });
 
-app.get("/api", checkToken,(req, res) => {
-  res.send("Hi I am api");
+app.get("/api", auth, (req, res) => {
+  res.send("Success: You have reached the protected API route!");
 });
 
-app.use((req, res)=>{
-  res.status(404).send("Page Not Found");
+app.use((req, res, next) => {
+  res.status(404).send("Error: Resource Not Found");
 });
 
-app.listen(3000, () => {
-  console.log("Server listening on port 3000 http://localhost:3000/");
+// This catches the 'ACCESS DENIED' error thrown in auth.js
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(401).send(`<h1>${err.message}</h1><a href="/">Try Again</a>`);
+});
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}/`);
 });

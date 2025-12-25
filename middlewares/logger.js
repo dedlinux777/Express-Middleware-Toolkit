@@ -1,14 +1,27 @@
+const fs = require("fs").promises;
+const path = require("path");
 
+const logFilePath = path.join(__dirname, "logs\access.log");
 let count = 0;
-let log = async function writeToFile(log) {
-  try {
+
+const loggerMiddleware = async (req, res, next) => {
+  const start = Date.now();
+  
+  // Hook into the finish event to log after the response is sent
+  res.on("finish", async () => {
+    const duration = Date.now() - start;
     count++;
-    const logData = `REQUEST:\n${count}\t${log.url}\t${log.method}\t${log.time}\n`;
-    await fs.appendFile("log.txt", logData, "utf8");
-    console.log(
-      `Written log in log.txt Successfully: \nPath: ${log.url}\nMethod: ${log.method}\nTime: ${log.time}`
-    );
-  } catch (err) {
-    console.error("Error writing file:", err);
-  }
+    
+    const logData = `[#${count}] ${new Date().toISOString()} | ${req.method} ${req.originalUrl} | Status: ${res.statusCode} | Time: ${duration}ms\n`;
+    
+    try {
+      await fs.appendFile(logFilePath, logData, "utf8");
+    } catch (err) {
+      console.error("Logging Error:", err);
+    }
+  });
+
+  next();
 };
+
+module.exports = loggerMiddleware;
